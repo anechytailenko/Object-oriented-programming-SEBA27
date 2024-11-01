@@ -166,7 +166,7 @@ public:
     void addFigureToTheArray(Figure* ptrOnShape) {
         if(ptrOnShape!=nullptr) {
             vecOfFigure.push_back(ptrOnShape);
-            // cout<< "\033[35mFigure was successfully added\033[0m\n";
+
             }
          else {
              cout<<"\033[31mFigure was not added cause it is outside the board\033[0m";
@@ -324,6 +324,7 @@ void Figure:: alteringVectorOfPoints(int x,int y, string fillChar ) {
             }
         } else {
             if(Board::getInstance().getOrderOfFigure(this)==-1) {
+                // cout << "was here";
                 *grid[y][x] = fillChar;
             }
             else if ( (grid[y][x].use_count()>1) &&(Board::getInstance().getOrderOfFigure(this) < Board::getInstance().getOrderOfFigure(Board::getInstance().selectForegroundFigureByCoord(x,y))) && ((Board::getInstance().getOrderOfFigure(this)!=-1))) {
@@ -342,41 +343,37 @@ void Figure::  editCoord(int x, int y) {
     if ((x== coordOrigin.coordX && coordOrigin.coordY == heightOfBoard - y -1) && (Board::getInstance().getVecFig().size() -1 ==  Board::getInstance().getOrderOfFigure(this) ) ) {
         throw std::runtime_error("There isn't any changes in parameter and figure is already on foreground");
     } else {
-
-
-
-        this->addShapeToBoard(true);
-
         int OriginalCoordX = coordOrigin.coordX;
         int OriginalCoordY = coordOrigin.coordY;
+        int locationindexInVecFig = Board::getInstance().getOrderOfFigure(this);
+
+
+        Board::getInstance().removeFigure(this);
 
         coordOrigin.coordX = x;
         coordOrigin.coordY = heightOfBoard - y -1 ;
 
+        this->addShapeToBoard();
+
+        if(vecOfPoints.empty()) {
+            cout << "You can not move to invalid shape";
+            coordOrigin.coordX = OriginalCoordX;
+            coordOrigin.coordY =  OriginalCoordY;
+            this->displayGeneralInfo();
+            vector<Figure*>& vec = Board::getInstance().getVecFig();
+            vec.insert(vec.begin() + locationindexInVecFig, this);
+            this->addShapeToBoard();
+        } else {
+            Board::getInstance().addFigureToTheArray(this);
+        }
 
 
-        Board::getInstance().addFigureToTheArray(this->addShapeToBoard());
-        Board::getInstance().removeFirstOccurrence(this);
-
-
-
-
-
-        // if(!(this->vecOfPoints).empty()) {
-        //     Board::getInstance().addFigureToTheArray(alterdFigure);
-        //     Board::getInstance().addFigureToTheArray(alterdFigure);
-        //     cout << "SUCCESS MOVE";
-        //
-        // }else {
-        //     coordOrigin.coordX = OriginalCoordX;
-        //     coordOrigin.coordY = OriginalCoordY;
-        //     this->addShapeToBoard();
-        //     Board::getInstance().addFigureToTheArray(this);
-        //     cout << "BY INVALID SHAPE CAN BE CHANGE";
-        // }
-
-    }
 }
+}
+
+
+
+
 
 void Figure:: checkTheSameFigure() {
     const vector<Figure*>& vec = Board::getInstance().getVecFig();
@@ -458,9 +455,10 @@ void Figure:: checkTheSameFigure() {
                     throw std::runtime_error("There isn't any change in parameters.");
                 }
                 int originalWidth = width;int originalHeight = height;
-
+                addShapeToBoard(true);
                 width = w;height = h;
                 vecOfPoints.clear();
+
                 this->addShapeToBoard();
                 if ( vecOfPoints.empty()) {
                     width = originalWidth;
@@ -547,6 +545,7 @@ void Figure:: checkTheSameFigure() {
                     throw std::runtime_error("There isn't any change in parameters.");
                 }
                 int originalRadius = radius;
+                addShapeToBoard(true);
 
                 radius = r;
                 vecOfPoints.clear();
@@ -616,6 +615,7 @@ void Figure:: checkTheSameFigure() {
                     throw std::runtime_error("There isn't any change in parameters.");
                 }
                 int originalHeight = heighOfTriangle;
+                addShapeToBoard(true);
 
                 heighOfTriangle = h;
                 vecOfPoints.clear();
@@ -748,10 +748,12 @@ void Figure:: checkTheSameFigure() {
             }
             void editParam(int s, int a) override {
 
+
                 if (sideLength == s && static_cast<int>(angle) == a) {
                     throw std::runtime_error("There isn't any change in parameters.");
                 }
                 int originalSideLength = sideLength;Angle originalAngle = angle;
+                addShapeToBoard(true);
 
                 setAngle(a); sideLength= s;
                 vecOfPoints.clear();
@@ -789,20 +791,70 @@ void Figure:: checkTheSameFigure() {
                 }
             }
 
-            void writeToFile() {
-                file.seekp(0, std::ios::beg);
-                const shared_ptr<shared_ptr<shared_ptr<string>[]>[]>& grid = Board::getInstance().GetGrid();
-                for (size_t i = 0; i < Board::getInstance().getHeight(); ++i) {
-                    shared_ptr<shared_ptr<string>[]>& row = grid[i];
-                    for (size_t j = 0; j < Board::getInstance().getWidth(); ++j) {
-                        shared_ptr<string> column = row[j];
-                        if (column) {
 
+
+            void writeToFileHtml() {
+
+                const auto& grid = Board::getInstance().GetGrid();
+
+
+                file << "<!DOCTYPE html>\n<html>\n<head>\n<title>Colored Grid</title>\n</head>\n<body>\n<pre>\n";
+
+                for (size_t i = 0; i < Board::getInstance().getHeight(); ++i) {
+                    const auto& row = grid[i];
+                    for (size_t j = 0; j < Board::getInstance().getWidth(); ++j) {
+                        const auto& column = row[j];
+                        std::string cellContent = *column;
+
+
+                            if (cellContent.find("\033[35m") != std::string::npos) {
+                                file << "<span style=\"color:purple;\">*</span>";
+                            } else if (cellContent.find("\033[32m") != std::string::npos) {
+                                file << "<span style=\"color:green;\">*</span>";
+                            } else if (cellContent.find("\033[38;5;214m") != std::string::npos) {
+                                file << "<span style=\"color:orange;\">*</span>";
+                            } else if (cellContent.find("\033[36m") != std::string::npos) {
+                                file << "<span style=\"color:cyan;\">*</span>";
+                            } else{file<< *column;}
+
+                    }
+                    file << "\n";
+                }
+
+
+                file << "</pre>\n</body>\n</html>";
+            }
+            void writeToFileBB() {
+
+                const auto& grid = Board::getInstance().GetGrid();
+
+
+
+
+                for (size_t i = 0; i < Board::getInstance().getHeight(); ++i) {
+                    const auto& row = grid[i];
+                    for (size_t j = 0; j < Board::getInstance().getWidth(); ++j) {
+                        const auto& column = row[j];
+                        std::string cellContent = *column;
+
+
+                        if (cellContent.find("\033[35m") != std::string::npos) {
+                            file << "[color=purple]*[/color]";;
+                        } else if (cellContent.find("\033[32m") != std::string::npos) {
+                            file << "[color=green]*[/color]";
+                        } else if (cellContent.find("\033[38;5;214m") != std::string::npos) {
+                            file << "[color=orange]*[/color]";
+                        } else if (cellContent.find("\033[36m") != std::string::npos) {
+                            file << "[color=blue]*[/color]";
+                        } else {
                             file << *column;
                         }
                     }
                     file << "\n";
                 }
+
+
+
             }
 
             void readFromFile() {
@@ -834,7 +886,7 @@ void Figure:: checkTheSameFigure() {
                         if(*grid[i][j] == "*") {
                             vecOfPoints.push_back(grid[i][j]);
                         }
-                        else { throw std::invalid_argument("The file contain inappriate sign");}
+                        else { throw std::invalid_argument("The file contains inappriate sign/s");}
                     }
                 }
 
@@ -945,17 +997,15 @@ void Figure:: checkTheSameFigure() {
                     std::regex pattern(R"(move \d+ \d+)");
                     if(selectedFigure == nullptr) {
                         cout << "\033[36mYou haven't selected any figure yet\033[0m\n";
-                    }
-                    if(regex_match(userCommand,pattern)) {
+                    }else if (regex_match(userCommand,pattern)) {
                         try {
-                            cout << "WASHERE";
+
                             selectedFigure->editCoord(stoi(words[1]),stoi(words[2]));
+
                         } catch (const std::runtime_error& e){
                             std::cout << "Caught an exception: " << e.what() << std::endl;
                         }
-                    } else {
-                        cout << "Incorrect input";
-                    }
+                    } else {cout<<"The string is invalid due to parameters" << std::endl;}
 
                 }
                 else if(words[0]== "add") {
@@ -985,16 +1035,27 @@ void Figure:: checkTheSameFigure() {
                 }
 
                 else if(words[0] == "save" && words.size() == 2) {
-                    regex pattern("^.*\\.txt$");
-                    if (regex_match(words[1], pattern)) {
+                    regex pattern1("^.*\\.html$");
+                    if (regex_match(words[1], pattern1)) {
                         try {
                             FileHandler fileWrite(words[1]);
-                            fileWrite.writeToFile();
+                            fileWrite.writeToFileHtml();
                             cout << "\033[36mInformation was succesfully writen to file\033[0m\n";
                         } catch (const exception& e) {
                             cerr << e.what() << endl;
                         }
-                    } else {cout << "File should be with .txt extention";}
+                    }
+                    regex pattern2("^.*\\.bb$");
+                    if (regex_match(words[1], pattern2)) {
+                        try {
+                            FileHandler fileWrite(words[1]);
+                            fileWrite.writeToFileBB();
+                            cout << "\033[36mInformation was succesfully writen to file\033[0m\n";
+                        } catch (const exception& e) {
+                            cerr << e.what() << endl;
+                        }
+                    }
+
                 } else if (words[0] == "load" && words.size() == 2) {
                     regex pattern("^.*\\.txt$");
                     if (regex_match(words[1], pattern)) {
@@ -1023,7 +1084,7 @@ void Figure:: checkTheSameFigure() {
     int Figure::counterOfId = 1000;
 
 
-
+// ../TestFileWrite/example.txt
 //
 int main() {
     Board::getInstance().initialize(60,20);
@@ -1038,3 +1099,18 @@ int main() {
     }
         return 0;
     };
+// add fill purple triangle 5 5 5
+// add fill purple triangle 5 5 5
+// add fill blue triangle 9 5 5
+// add fill blue rectangle 0 0 13 7
+// add fill orange rectangle 0 4 8 5
+// select 1000
+// move 0 0
+
+// draw
+// select 1001
+// edit 8 5 5
+
+// add frame green circle 5 5 5
+// add frame green circle 5 5 6
+// add frame green circle 5 5 7
